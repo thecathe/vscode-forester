@@ -72,9 +72,11 @@
           # forest.meta.date.page", which the fork reports for options only
           # read by scripts/forest_gen.py). forest-keeper used the whole of
           # stdout as the path and then failed to open the file it had just
-          # created. Keep only the line that names a .tree file.
+          # created. Keep only the line that names a .tree file. The call is
+          # `(await PC([...]))?.trim()`, so it is already a string here (no
+          # `.then`); `?.` keeps the undefined-on-failure behaviour.
           substituteInPlace out/extension.js \
-            --replace-fail ':[]]))?.trim();if(!x){' ':[]])).then(W=>W?.split(/\r?\n/).map(fe=>fe.trim()).filter(fe=>fe.endsWith(".tree")).pop());if(!x){'
+            --replace-fail ':[]]))?.trim();if(!x){' ':[]]))?.split(/\r?\n/).map(fe=>fe.trim()).filter(fe=>fe.endsWith(".tree")).pop();if(!x){'
         '';
     });
 
