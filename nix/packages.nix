@@ -66,6 +66,15 @@
             --replace-fail 'let o=await MC({prompt:"Enter title for the new tree' 'let o=t.noTitle?{taxon:void 0,title:void 0}:await MC({prompt:"Enter title for the new tree' \
             --replace-fail 'async function ag(t,e){let n=await qC({destFolder:t,fromTemplate:e});' 'async function ag(t,e,u){let n=await qC({destFolder:t,fromTemplate:e,noTitle:u});' \
             --replace-fail '$.commands.registerCommand("forester.newTree",b=>ag(b,!1)),' '$.commands.registerCommand("forester.newTree",b=>ag(b,!1)),$.commands.registerCommand("forester.newTreeUntitled",b=>ag(b,!1,!0)),'
+
+          # `forester new` prints the new tree's path on stdout, but also any
+          # config warnings (e.g. "Uninterpreted config option:
+          # forest.meta.date.page", which the fork reports for options only
+          # read by scripts/forest_gen.py). forest-keeper used the whole of
+          # stdout as the path and then failed to open the file it had just
+          # created. Keep only the line that names a .tree file.
+          substituteInPlace out/extension.js \
+            --replace-fail ':[]]))?.trim();if(!x){' ':[]])).then(W=>W?.split(/\r?\n/).map(fe=>fe.trim()).filter(fe=>fe.endsWith(".tree")).pop());if(!x){'
         '';
     });
 

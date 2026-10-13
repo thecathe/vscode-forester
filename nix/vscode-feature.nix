@@ -8,6 +8,11 @@
   ];
 
   settings = {
+    # Let the new-tree keybinds fire while the integrated terminal has focus.
+    "terminal.integrated.commandsToSkipShell" = [
+      "forester.newTree"
+      "forester.newTreeUntitled"
+    ];
     "forester.completion.showID" = true;
     "forester.config" = ""; # should be edited per workspace, instead of globally
     # No global author: new trees get theirs from `[forest.new] author` in each
@@ -97,10 +102,15 @@
       command = "forester.restartLanguageServer";
       inherit when;
     }
+    # ctrl+t / ctrl+shift+t are not limited to .tree editors: a new tree can be
+    # started from anywhere in the window (explorer, terminal via
+    # commandsToSkipShell, ...). The `when` only requires an open folder; it
+    # also keeps the chord distinct from the unbinds of the defaults, which
+    # mkProfile's duplicate check compares by key + when.
     {
       key = "ctrl+t";
       command = "forester.newTreeUntitled";
-      inherit when;
+      when = "workbenchState != empty";
     }
     # Frees ctrl+shift+t (VS Code's "Reopen Closed Editor") for the titled
     # variant below.
@@ -111,7 +121,7 @@
     {
       key = "ctrl+shift+t";
       command = "forester.newTree";
-      inherit when;
+      when = "workbenchState != empty";
     }
     {
       key = "ctrl+alt+f";
