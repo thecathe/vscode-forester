@@ -1,0 +1,39 @@
+{
+  "name": "forester-edit",
+  "displayName": "Forester Edit",
+  "description": "Keybound structural insertions (\\li, \\p, \\tag) plus build and touch-date commands for Forester .tree files",
+  "version": "0.2.0",
+  "publisher": "thecathe",
+  "engines": { "vscode": "^1.80.0" },
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:forester"],
+  "contributes": {
+    "commands": [
+      { "command": "forestEdit.insertLi", "title": "Forester: Insert \\li{} in innermost \\ul{}" },
+      { "command": "forestEdit.insertLiParent", "title": "Forester: Insert \\li{} one \\ul{} out from the innermost (fresh \\ul{} at end of tree if none)" },
+      { "command": "forestEdit.insertLiOutermost", "title": "Forester: Insert \\li{} in outermost \\ul{}" },
+      { "command": "forestEdit.insertLiRoot", "title": "Forester: Insert \\li{} in a fresh \\ul{} at the end of the tree" },
+      { "command": "forestEdit.insertSubtree", "title": "Forester: Insert \\subtree{\\title{}}" },
+      { "command": "forestEdit.appendP", "title": "Forester: Append \\p{} at end of the subtree or tree" },
+      { "command": "forestEdit.insertTag", "title": "Forester: Insert \\tag{} in header" },
+      { "command": "forestEdit.build", "title": "Forester: Build Forest" },
+      { "command": "forestEdit.touchDate", "title": "Forester: Touch Date" }
+    ],
+    "taskDefinitions": [{ "type": "forestEdit" }],
+    "configuration": {
+      "title": "Forester Edit",
+      "properties": {
+        "forestEdit.buildCommand": {
+          "type": "string",
+          "default": "build-forest",
+          "description": "Command run by \"Forester: Build Forest\", in the workspace folder of the active tree."
+        },
+        "forestEdit.touchDateCommand": {
+          "type": "string",
+          "default": "touch-date",
+          "description": "Command run by \"Forester: Touch Date\"; receives the active file's path as its only argument."
+        }
+      }
+    }
+  }
+}
