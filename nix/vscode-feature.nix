@@ -129,7 +129,7 @@
       inherit when;
     }
     # Structural inserts (see ../extension). All leave the cursor between the
-    # new braces. These shadow VS Code's Quick Open (ctrl+p), Trigger Suggest
+    # new braces. These shadow VS Code's Trigger Suggest
     # (ctrl+i) and Toggle Developer Tools (ctrl+shift+i) in .tree editors
     # only.
     {
@@ -157,13 +157,42 @@
       command = "forestEdit.insertSubtree";
       inherit when;
     }
+    # Frees Quick Open; shadows the Command Palette in .tree editors (F1
+    # still opens it).
     {
-      key = "ctrl+p";
+      key = "ctrl+shift+p";
       command = "forestEdit.appendP";
       inherit when;
     }
+    # Lists nest inside the current \li{}, else go after the cursor's line.
+    # Shadow Open File (ctrl+o) and Cursor Undo (ctrl+u) in .tree editors only.
     {
-      key = "ctrl+#";
+      key = "ctrl+o";
+      command = "forestEdit.insertOl";
+      inherit when;
+    }
+    {
+      key = "ctrl+u";
+      command = "forestEdit.insertUl";
+      inherit when;
+    }
+    # Person links: picker over trees/people/ (can create), and a bare [[@]].
+    {
+      key = "ctrl+'";
+      command = "forestEdit.insertPersonLink";
+      inherit when;
+    }
+    {
+      key = "ctrl+shift+'";
+      command = "forestEdit.insertPersonLinkBlank";
+      inherit when;
+    }
+    # The UK `#` key is the physical Backslash key. "ctrl+#" is not a name
+    # VS Code's keybinding parser knows, so that spelling never matched; the
+    # scancode form is layout-independent. Shadows Split Editor in .tree
+    # editors only.
+    {
+      key = "ctrl+[Backslash]";
       command = "forestEdit.insertTag";
       inherit when;
     }

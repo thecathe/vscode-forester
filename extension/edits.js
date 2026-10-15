@@ -5,8 +5,8 @@
 
 const HEADER = /^\s*(%\s*)?\\(date|author|title|taxon|meta|tag)\b/;
 
-// Find every `\ul{...}` and `\subtree{...}` / `\subtree[addr]{...}` as
-// {kind, open, close} offsets of its braces. Skips escaped characters, `%`
+// Find every `\ul{...}`, `\ol{...}`, `\li{...}` and `\subtree{...}` /
+// `\subtree[addr]{...}` as {kind, open, close} offsets of its braces. Skips escaped characters, `%`
 // line comments and verbatim regions.
 function scanSpans(text) {
   const spans = [];
@@ -26,9 +26,10 @@ function scanSpans(text) {
         i = e < 0 ? text.length : e + 2;
         continue;
       }
-      if (text.startsWith("\\ul{", i)) {
-        stack.push({ kind: "ul", open: i + 3 });
-        i += 4;
+      const blk = /^\\(ul|ol|li)\{/.exec(text.slice(i, i + 5));
+      if (blk) {
+        stack.push({ kind: blk[1], open: i + blk[0].length - 1 });
+        i += blk[0].length;
         continue;
       }
       const sub = /^\\subtree(\[[^\]\n]*\])?\s*\{/.exec(text.slice(i, i + 200));
@@ -63,16 +64,22 @@ function indentOf(text, off) {
   return /^[ \t]*/.exec(text.slice(lineStart(text, off)))[0];
 }
 
+const isList = (s) => s.kind === "ul" || s.kind === "ol";
+
 // What encloses the cursor: the innermost `\subtree` (the scope that
-// inserts respect, or null at the page root) and the `\ul`s inside that
-// scope, innermost first.
+// inserts respect, or null at the page root), the lists (`\ul` or `\ol`,
+// which are treated alike) inside that scope, innermost first, and every
+// `\li` in the page so callers can find the item a list entry lives in.
 function contextAt(text, cursorOff) {
-  const spans = scanSpans(text)
+  const all = scanSpans(text);
+  const around = all
     .filter((s) => s.open < cursorOff && cursorOff <= s.close)
     .sort((a, b) => a.close - a.open - (b.close - b.open));
-  const scope = spans.find((s) => s.kind === "subtree") || null;
-  const uls = spans.filter((s) => s.kind === "ul" && (!scope || s.open > scope.open));
-  return { scope, uls };
+  const scope = around.find((s) => s.kind === "subtree") || null;
+  const inScope = (s) => !scope || s.open > scope.open;
+  const uls = around.filter((s) => isList(s) && inScope(s));
+  const lis = around.filter((s) => s.kind === "li" && inScope(s));
+  return { scope, uls, lis, all };
 }
 
 // Append a block of `lines` (a "\0" marks where the cursor goes) as the last
@@ -114,49 +121,115 @@ function appendBlock(text, scope, lines, blankBefore) {
   return finish(str, start, scope.close);
 }
 
-// New `\li{}` inside an enclosing `\ul`, chosen by `level` among the `\ul`s
-// inside the cursor's `\subtree` (or the whole page when not in one):
-//   "inner"     the innermost `\ul` around the cursor
+// New `\li{}` inside an enclosing list (`\ul` or `\ol`, treated alike),
+// chosen by `level` among the lists inside the cursor's `\subtree` (or the
+// whole page when not in one):
+//   "inner"     the innermost list around the cursor
 //   "parent"    one level out from the innermost
-//   "outermost" the outermost `\ul` around the cursor
-//   "root"      never an existing `\ul`: a fresh one at the end of the page
-// When there is no such `\ul`, a fresh `\ul{ \li{} }` is appended to the end
-// of the subtree (or of the page).
+//   "outermost" the outermost list around the cursor
+//   "root"      never an existing list: a fresh `\ul` at the end of the page
+// The item goes at the nearest valid point after the cursor: right after the
+// chosen list's item the cursor is in (whole item, nested lists included), or
+// before the next item when the cursor sits between items, or at the end of
+// the list when nothing follows. When there is no such list, a fresh
+// `\ul{ \li{} }` is appended to the end of the subtree (or of the page).
 function insertLi(text, cursorOff, level) {
-  const { scope, uls } = contextAt(text, cursorOff);
+  const { scope, uls, all } = contextAt(text, cursorOff);
   const fresh = (sc) => appendBlock(text, sc, ["\\ul{", "  \\li{\0}", "}"]);
   if (level === "root") return fresh(null);
   const ul =
     level === "outermost" ? uls[uls.length - 1] : level === "parent" ? uls[1] : uls[0];
   if (!ul) return fresh(scope);
+  // Direct child items of `ul`, in document order.
+  const items = all
+    .filter((s) => s.kind === "li" && s.open > ul.open && s.close < ul.close)
+    .filter(
+      (li) =>
+        !all.some((o) => isList(o) && o.open > ul.open && o.open < li.open && li.close < o.close),
+    )
+    .sort((x, y) => x.open - y.open);
+  const here = items.find((li) => li.open < cursorOff && cursorOff <= li.close);
+  const next = here ? null : items.find((li) => li.open >= cursorOff);
   const ulIndent = indentOf(text, ul.open);
+  const child = /\n([ \t]*)\\li\{/.exec(text.slice(ul.open + 1, ul.close));
+  const indent = child ? child[1] : ulIndent + "  ";
+  const lead = "\\li{".length;
+  if (here) {
+    // After the whole item, on its own line.
+    const at = here.close + 1;
+    let eol = text.indexOf("\n", at);
+    if (eol < 0) eol = text.length;
+    const tail = text.slice(at, eol);
+    const itemIndent = indentOf(text, here.open);
+    if (/^\s*$/.test(tail)) {
+      return {
+        start: at,
+        end: eol,
+        text: `\n${itemIndent}\\li{}`,
+        cursor: at + 1 + itemIndent.length + lead,
+      };
+    }
+    const skip = /^[ \t]*/.exec(tail)[0].length;
+    return {
+      start: at,
+      end: at + skip,
+      text: `\n${itemIndent}\\li{}\n${itemIndent}`,
+      cursor: at + 1 + itemIndent.length + lead,
+    };
+  }
+  if (next) {
+    const itemStart = next.open - "\\li".length; // `open` is the brace
+    const ls = lineStart(text, itemStart);
+    if (/^[ \t]*$/.test(text.slice(ls, itemStart))) {
+      const ind = text.slice(ls, itemStart);
+      return { start: ls, end: ls, text: `${ind}\\li{}\n`, cursor: ls + ind.length + lead };
+    }
+  }
   const body = text.slice(ul.open + 1, ul.close);
   const closeLineStart = lineStart(text, ul.close);
   const closeAlone =
     closeLineStart > ul.open && /^[ \t]*$/.test(text.slice(closeLineStart, ul.close));
   if (closeAlone) {
-    // Match an existing direct child's indentation, else ulIndent + 2.
-    const child = /\n([ \t]*)\\li\{/.exec(body);
-    const indent = child ? child[1] : ulIndent + "  ";
-    const ins = `${indent}\\li{}\n`;
     return {
       start: closeLineStart,
       end: closeLineStart,
-      text: ins,
-      cursor: closeLineStart + indent.length + "\\li{".length,
+      text: `${indent}\\li{}\n`,
+      cursor: closeLineStart + indent.length + lead,
     };
   }
-  // `\ul{...}` closed on the same line as content: put the new item on its
-  // own line and move the brace down.
-  const indent = ulIndent + "  ";
+  // List closed on the same line as content: put the new item on its own line
+  // and move the brace down.
   const trimmedEnd = ul.open + 1 + body.replace(/\s+$/, "").length;
-  const ins = `\n${indent}\\li{}\n${ulIndent}`;
   return {
     start: trimmedEnd,
     end: ul.close,
-    text: ins,
-    cursor: trimmedEnd + 1 + indent.length + "\\li{".length,
+    text: `\n${indent}\\li{}\n${ulIndent}`,
+    cursor: trimmedEnd + 1 + indent.length + lead,
   };
+}
+
+// A fresh `\ol{ \li{} }` (or `\ul`, per `kind`), cursor inside the `\li{}`.
+// Inside an item it is nested at the end of that item's content; elsewhere it
+// goes on its own line after the cursor's line.
+function insertList(text, cursorOff, kind) {
+  const { lis } = contextAt(text, cursorOff);
+  const lines = [`\\${kind}{`, "  \\li{\0}", "}"];
+  if (lis[0]) return appendBlock(text, lis[0], lines);
+  let eol = text.indexOf("\n", cursorOff);
+  if (eol < 0) eol = text.length;
+  const indent = indentOf(text, cursorOff);
+  const str = `\n${indent}${lines.join(`\n${indent}`)}`;
+  return {
+    start: eol,
+    end: eol,
+    text: str.replace("\0", ""),
+    cursor: eol + str.indexOf("\0"),
+  };
+}
+
+// `[[@name]]`, accepting the name with or without its leading `@`.
+function personLink(name) {
+  return `[[@${name.trim().replace(/^@/, "")}]]`;
 }
 
 // `\p{}` at the end of the cursor's `\subtree`, or of the page.
@@ -227,4 +300,12 @@ function insertTag(text) {
   };
 }
 
-module.exports = { scanSpans, insertLi, appendP, insertSubtree, insertTag };
+module.exports = {
+  scanSpans,
+  insertLi,
+  insertList,
+  personLink,
+  appendP,
+  insertSubtree,
+  insertTag,
+};
