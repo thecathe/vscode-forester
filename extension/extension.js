@@ -2,12 +2,21 @@ const { execFile } = require("child_process");
 const vscode = require("vscode");
 const edits = require("./edits");
 
+// Small self-dismissing status-bar message, for command failures.
+function notify(msg) {
+  vscode.window.setStatusBarMessage(`$(warning) Forester: ${msg}`, 4000);
+}
+
 async function apply(compute) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) return;
   const doc = editor.document;
   const text = doc.getText();
   const r = compute(text, doc.offsetAt(editor.selection.active));
+  if (r.error) {
+    notify(r.error);
+    return;
+  }
   const range = new vscode.Range(doc.positionAt(r.start), doc.positionAt(r.end));
   if (!(await editor.edit((b) => b.replace(range, r.text)))) return;
   const pos = editor.document.positionAt(r.cursor);
@@ -33,7 +42,7 @@ async function build() {
     (editor && vscode.workspace.getWorkspaceFolder(editor.document.uri)) ||
     (vscode.workspace.workspaceFolders || [])[0];
   if (!folder) {
-    vscode.window.showErrorMessage("Forester: no workspace folder to build.");
+    notify("no workspace folder to build");
     return;
   }
   const task = new vscode.Task(
@@ -57,7 +66,7 @@ async function touchDate() {
   if (!editor) return;
   execFile(setting("touchDateCommand"), [editor.document.uri.fsPath], (err, stdout, stderr) => {
     if (err) {
-      vscode.window.showErrorMessage(`Forester: touch date failed: ${stderr || err.message}`);
+      notify(`touch date failed: ${(stderr || err.message).trim().split("\n")[0]}`);
     } else {
       vscode.window.setStatusBarMessage(stdout.trim(), 3000);
     }
@@ -182,7 +191,7 @@ async function showCheatsheet(context) {
     );
     entries = JSON.parse(Buffer.from(raw).toString("utf8"));
   } catch (err) {
-    vscode.window.showErrorMessage(`Forester: cannot read cheatsheet: ${err.message}`);
+    notify(`cannot read cheatsheet: ${err.message}`);
     return;
   }
   const items = [];
@@ -221,6 +230,8 @@ function activate(context) {
   reg("forestEdit.insertLiRoot", (t, c) => edits.insertLi(t, c, "root"));
   reg("forestEdit.insertOl", (t, c) => edits.insertList(t, c, "ol"));
   reg("forestEdit.insertUl", (t, c) => edits.insertList(t, c, "ul"));
+  reg("forestEdit.listToUl", (t, c) => edits.toggleList(t, c, "ul"));
+  reg("forestEdit.listToOl", (t, c) => edits.toggleList(t, c, "ol"));
   reg("forestEdit.appendP", (t, c) => edits.appendP(t, c));
   reg("forestEdit.insertSubtree", (t, c) => edits.insertSubtree(t, c));
   reg("forestEdit.insertTag", (t) => edits.insertTag(t));
