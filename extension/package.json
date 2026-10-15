@@ -1,18 +1,22 @@
 {
   "name": "forester-edit",
   "displayName": "Forester Edit",
-  "description": "Keybound structural insertions (\\li, \\p, \\tag) plus build and touch-date commands for Forester .tree files",
-  "version": "0.2.0",
+  "description": "Keybound structural insertions (\\li, \\ol, \\p, \\tag, person links) plus build and touch-date commands for Forester .tree files",
+  "version": "0.3.0",
   "publisher": "thecathe",
   "engines": { "vscode": "^1.80.0" },
   "main": "./extension.js",
   "activationEvents": ["onLanguage:forester"],
   "contributes": {
     "commands": [
-      { "command": "forestEdit.insertLi", "title": "Forester: Insert \\li{} in innermost \\ul{}" },
-      { "command": "forestEdit.insertLiParent", "title": "Forester: Insert \\li{} one \\ul{} out from the innermost (fresh \\ul{} at end of tree if none)" },
-      { "command": "forestEdit.insertLiOutermost", "title": "Forester: Insert \\li{} in outermost \\ul{}" },
+      { "command": "forestEdit.insertLi", "title": "Forester: Insert \\li{} after the cursor's item in the innermost \\ul{}/\\ol{}" },
+      { "command": "forestEdit.insertLiParent", "title": "Forester: Insert \\li{} one list out from the innermost (fresh \\ul{} at end of tree if none)" },
+      { "command": "forestEdit.insertLiOutermost", "title": "Forester: Insert \\li{} in outermost \\ul{}/\\ol{}" },
       { "command": "forestEdit.insertLiRoot", "title": "Forester: Insert \\li{} in a fresh \\ul{} at the end of the tree" },
+      { "command": "forestEdit.insertOl", "title": "Forester: Insert \\ol{\\li{}} (nested in the current item, else after the cursor's line)" },
+      { "command": "forestEdit.insertUl", "title": "Forester: Insert \\ul{\\li{}} (nested in the current item, else after the cursor's line)" },
+      { "command": "forestEdit.insertPersonLink", "title": "Forester: Insert [[@person]] from trees/people (or create one)" },
+      { "command": "forestEdit.insertPersonLinkBlank", "title": "Forester: Insert [[@]] with the cursor after the @" },
       { "command": "forestEdit.insertSubtree", "title": "Forester: Insert \\subtree{\\title{}}" },
       { "command": "forestEdit.appendP", "title": "Forester: Append \\p{} at end of the subtree or tree" },
       { "command": "forestEdit.insertTag", "title": "Forester: Insert \\tag{} in header" },
@@ -27,6 +31,11 @@
           "type": "string",
           "default": "build-forest",
           "description": "Command run by \"Forester: Build Forest\", in the workspace folder of the active tree."
+        },
+        "forestEdit.author": {
+          "type": "string",
+          "default": "@jpears",
+          "description": "Value of \\author{} written into person trees created by \"Insert [[@person]]\"."
         },
         "forestEdit.touchDateCommand": {
           "type": "string",

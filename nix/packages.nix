@@ -85,7 +85,7 @@
   # touch-date commands that wrap the scripts below.
   forester-edit = pkgs.vscode-utils.buildVscodeExtension {
     pname = "forester-edit";
-    version = "0.2.0";
+    version = "0.3.0";
     # named "extension" because buildVscodeExtension expects that source root
     src = builtins.path {
       path = ../extension;

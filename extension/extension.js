@@ -64,17 +64,120 @@ async function touchDate() {
   });
 }
 
+// Insert `text` at the cursor and leave the cursor after it.
+async function insertAtCursor(editor, text) {
+  const start = editor.document.offsetAt(editor.selection.active);
+  if (!(await editor.edit((b) => b.replace(editor.selection, text)))) return;
+  const pos = editor.document.positionAt(start + text.length);
+  editor.selection = new vscode.Selection(pos, pos);
+}
+
+// `[[@]]` with the cursor after the `@`, for when the picker is overkill.
+async function insertPersonLinkBlank() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) return;
+  const start = editor.document.offsetAt(editor.selection.active);
+  if (!(await editor.edit((b) => b.replace(editor.selection, "[[@]]")))) return;
+  const pos = editor.document.positionAt(start + "[[@".length);
+  editor.selection = new vscode.Selection(pos, pos);
+}
+
+// Pick (or create) a person from trees/people/ and insert `[[@id]]`.
+async function insertPersonLink() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) return;
+  const folder =
+    vscode.workspace.getWorkspaceFolder(editor.document.uri) ||
+    (vscode.workspace.workspaceFolders || [])[0];
+  if (!folder) return;
+  const peopleDir = vscode.Uri.joinPath(folder.uri, "trees", "people");
+  let files = [];
+  try {
+    files = await vscode.workspace.fs.readDirectory(peopleDir);
+  } catch (_) {
+    // no people dir yet; creating a person will make it
+  }
+  const known = new Map(); // id (no @) -> title
+  for (const [name] of files) {
+    const m = /^@?(.+)\.tree$/.exec(name);
+    if (!m) continue;
+    let title = "";
+    try {
+      const raw = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(peopleDir, name));
+      const t = /\\title\{([^}]*)\}/.exec(Buffer.from(raw).toString("utf8"));
+      title = t ? t[1] : "";
+    } catch (_) {}
+    known.set(m[1], title);
+  }
+
+  const qp = vscode.window.createQuickPick();
+  qp.title = "Link a person";
+  qp.placeholder = "name (e.g. jpears); a new name creates trees/people/@<name>.tree";
+  qp.matchOnDescription = true;
+  const existing = [...known].map(([id, title]) => ({
+    label: `@${id}`,
+    description: title,
+    id,
+  }));
+  const refresh = () => {
+    const typed = qp.value.trim().replace(/^@/, "");
+    const items = [...existing];
+    if (typed && !known.has(typed)) {
+      items.unshift({
+        label: `$(add) Create @${typed}`,
+        description: "new person",
+        id: typed,
+        create: true,
+        alwaysShow: true,
+      });
+    }
+    qp.items = items;
+  };
+  refresh();
+  qp.onDidChangeValue(refresh);
+  const pick = await new Promise((resolve) => {
+    qp.onDidAccept(() => resolve(qp.selectedItems[0] || qp.activeItems[0]));
+    qp.onDidHide(() => resolve(undefined));
+    qp.show();
+  });
+  qp.dispose();
+  if (!pick) return;
+
+  if (pick.create) {
+    const long = await vscode.window.showInputBox({
+      title: `Full name for @${pick.id}`,
+      prompt: "Used as \\title{} of the new person tree",
+      validateInput: (v) => (v.trim() ? undefined : "A name is required"),
+    });
+    if (long === undefined) return;
+    const author = vscode.workspace.getConfiguration("forestEdit").get("author");
+    const date = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+    const body =
+      `\\date{${date}}\n\\author{${author}}\n\\title{${long.trim()}}\n\\taxon{Person}\n`;
+    await vscode.workspace.fs.createDirectory(peopleDir);
+    await vscode.workspace.fs.writeFile(
+      vscode.Uri.joinPath(peopleDir, `@${pick.id}.tree`),
+      Buffer.from(body, "utf8"),
+    );
+  }
+  await insertAtCursor(editor, edits.personLink(pick.id));
+}
+
 function activate(context) {
   const reg = (id, fn) =>
     context.subscriptions.push(vscode.commands.registerCommand(id, () => apply(fn)));
   context.subscriptions.push(
     vscode.commands.registerCommand("forestEdit.build", build),
     vscode.commands.registerCommand("forestEdit.touchDate", touchDate),
+    vscode.commands.registerCommand("forestEdit.insertPersonLink", insertPersonLink),
+    vscode.commands.registerCommand("forestEdit.insertPersonLinkBlank", insertPersonLinkBlank),
   );
   reg("forestEdit.insertLi", (t, c) => edits.insertLi(t, c, "inner"));
   reg("forestEdit.insertLiParent", (t, c) => edits.insertLi(t, c, "parent"));
   reg("forestEdit.insertLiOutermost", (t, c) => edits.insertLi(t, c, "outermost"));
   reg("forestEdit.insertLiRoot", (t, c) => edits.insertLi(t, c, "root"));
+  reg("forestEdit.insertOl", (t, c) => edits.insertList(t, c, "ol"));
+  reg("forestEdit.insertUl", (t, c) => edits.insertList(t, c, "ul"));
   reg("forestEdit.appendP", (t, c) => edits.appendP(t, c));
   reg("forestEdit.insertSubtree", (t, c) => edits.insertSubtree(t, c));
   reg("forestEdit.insertTag", (t) => edits.insertTag(t));
