@@ -123,6 +123,20 @@ in [
     label = "New \\ul{\\li{}}";
   }
   {
+    key = "ctrl+alt+u";
+    command = "forestEdit.listToUl";
+    inherit when;
+    group = "Lists";
+    label = "Convert the innermost \\ol{} to \\ul{}";
+  }
+  {
+    key = "ctrl+alt+o";
+    command = "forestEdit.listToOl";
+    inherit when;
+    group = "Lists";
+    label = "Convert the innermost \\ul{} to \\ol{}";
+  }
+  {
     key = "ctrl+alt+t";
     command = "forestEdit.insertSubtree";
     inherit when;

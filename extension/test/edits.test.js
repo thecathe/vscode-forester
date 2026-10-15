@@ -80,3 +80,20 @@ test("personLink normalises a leading @", () => {
   assert.strictEqual(e.personLink(" @bob "), "[[@bob]]");
   assert.strictEqual(e.personLink("bob"), "[[@bob]]");
 });
+
+test("toggleList converts the innermost list and keeps the cursor", () => {
+  const to = (k) => (t, c) => e.toggleList(t, c, k);
+  assert.strictEqual(
+    run("\\ul{\n  \\li{a \\ol{\n    \\li{n|}\n  }}\n}\n", to("ul")),
+    "\\ul{\n  \\li{a \\ul{\n    \\li{n|}\n  }}\n}\n",
+  );
+  assert.strictEqual(
+    run("\\ul{\n  \\li{a|}\n}\n", to("ol")),
+    "\\ol{\n  \\li{a|}\n}\n",
+  );
+});
+
+test("toggleList reports when there is nothing to convert", () => {
+  assert.match(e.toggleList("\\p{x}", 4, "ul").error, /no list/);
+  assert.match(e.toggleList("\\ul{\\li{a}}", 8, "ul").error, /already a \\ul/);
+});

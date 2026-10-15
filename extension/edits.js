@@ -227,6 +227,17 @@ function insertList(text, cursorOff, kind) {
   };
 }
 
+// Convert the innermost list around the cursor (inside the cursor's
+// `\subtree`) to `to` ("ul" or "ol"). The replaced name has the same length,
+// so the cursor stays put. Returns `{error}` when there is nothing to do.
+function toggleList(text, cursorOff, to) {
+  const { uls } = contextAt(text, cursorOff);
+  const list = uls[0];
+  if (!list) return { error: "no list around the cursor" };
+  if (list.kind === to) return { error: `already a \\${to}{}` };
+  return { start: list.open - 2, end: list.open, text: to, cursor: cursorOff };
+}
+
 // `[[@name]]`, accepting the name with or without its leading `@`.
 function personLink(name) {
   return `[[@${name.trim().replace(/^@/, "")}]]`;
@@ -304,6 +315,7 @@ module.exports = {
   scanSpans,
   insertLi,
   insertList,
+  toggleList,
   personLink,
   appendP,
   insertSubtree,
