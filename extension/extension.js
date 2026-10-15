@@ -163,12 +163,55 @@ async function insertPersonLink() {
   await insertAtCursor(editor, edits.personLink(pick.id));
 }
 
+// Quick Pick listing the Forester keybindings (generated from
+// nix/keybindings.nix into cheatsheet.json). Esc dismisses; Enter runs the
+// selected command in the editor that had focus.
+const PRETTY = { "[Backslash]": "#", "'": "'" };
+function prettyKey(key) {
+  return key
+    .split("+")
+    .map((p) => PRETTY[p] || (p.length === 1 ? p.toUpperCase() : p[0].toUpperCase() + p.slice(1)))
+    .join("+");
+}
+
+async function showCheatsheet(context) {
+  let entries = [];
+  try {
+    const raw = await vscode.workspace.fs.readFile(
+      vscode.Uri.joinPath(context.extensionUri, "cheatsheet.json"),
+    );
+    entries = JSON.parse(Buffer.from(raw).toString("utf8"));
+  } catch (err) {
+    vscode.window.showErrorMessage(`Forester: cannot read cheatsheet: ${err.message}`);
+    return;
+  }
+  const items = [];
+  let group;
+  for (const e of entries) {
+    if (e.group !== group) {
+      group = e.group;
+      items.push({ label: group, kind: vscode.QuickPickItemKind.Separator });
+    }
+    items.push({
+      label: `${prettyKey(e.key).padEnd(18)} ${e.label}`,
+      command: e.command,
+    });
+  }
+  const pick = await vscode.window.showQuickPick(items, {
+    title: "Forester keybindings",
+    placeHolder: "filter; Enter runs the command, Esc closes",
+    matchOnDescription: true,
+  });
+  if (pick && pick.command) await vscode.commands.executeCommand(pick.command);
+}
+
 function activate(context) {
   const reg = (id, fn) =>
     context.subscriptions.push(vscode.commands.registerCommand(id, () => apply(fn)));
   context.subscriptions.push(
     vscode.commands.registerCommand("forestEdit.build", build),
     vscode.commands.registerCommand("forestEdit.touchDate", touchDate),
+    vscode.commands.registerCommand("forestEdit.showCheatsheet", () => showCheatsheet(context)),
     vscode.commands.registerCommand("forestEdit.insertPersonLink", insertPersonLink),
     vscode.commands.registerCommand("forestEdit.insertPersonLinkBlank", insertPersonLinkBlank),
   );

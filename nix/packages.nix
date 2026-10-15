@@ -85,16 +85,23 @@
   # touch-date commands that wrap the scripts below.
   forester-edit = pkgs.vscode-utils.buildVscodeExtension {
     pname = "forester-edit";
-    version = "0.3.0";
-    # named "extension" because buildVscodeExtension expects that source root
-    src = builtins.path {
-      path = ../extension;
-      name = "extension";
-    };
+    version = "0.4.0";
+    # named "extension" because buildVscodeExtension expects that source root.
+    # cheatsheet.json is generated from nix/keybindings.nix so the in-editor
+    # cheatsheet (forestEdit.showCheatsheet) cannot drift from the bindings.
+    src = pkgs.runCommand "extension" {} ''
+      cp -r ${../extension} $out
+      chmod -R u+w $out
+      cp ${cheatsheet} $out/cheatsheet.json
+    '';
     vscodeExtPublisher = "thecathe";
     vscodeExtName = "forester-edit";
     vscodeExtUniqueId = "thecathe.forester-edit";
   };
+
+  cheatsheet = pkgs.writeText "cheatsheet.json" (builtins.toJSON (map
+    (kb: {inherit (kb) key command group label;})
+    (builtins.filter (kb: kb ? label) (import ./keybindings.nix))));
 
   python = pkgs.python3;
 
