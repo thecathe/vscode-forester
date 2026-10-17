@@ -20,7 +20,7 @@ Subcommands (all take --config, default forest.toml):
           false`), write a taxon page listing the trees with that taxon,
           plus a `taxa` index. The compiler links each taxon to its page.
   dates   If `[forest.meta.date] page = true`, write a `timeline` page listing
-          every \date{} of every non-hidden tree, oldest first. A tree's
+          every \date{} of every non-hidden, published tree, oldest first. A tree's
           earliest date is its "first entry"; later ones are "return entries"
           (italic). The timestamp stands in place of the list marker.
   lint    Warn (loudly) about every non-hidden tree that links to or
@@ -173,6 +173,14 @@ def hidden_tags(cfg):
     return {t for t, r in cfg["tags"].items() if r.get("behaviour") == "hide"}
 
 
+def unpublished(cfg, tree):
+    """Whether the tree's taxon has `unpublished = true` and its address is
+    not in that taxon's `publish` list (the compiler's rule): it gets no page,
+    so generated pages must not list it either."""
+    rule = cfg["taxa"].get(tree.taxon or "", {})
+    return rule.get("unpublished") is True and tree.addr not in rule.get("publish", [])
+
+
 def slug(name):
     s = re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-").lower()
     return s or "tag"
@@ -241,7 +249,7 @@ def cmd_taxa(cfg, trees, out, extra_taxa=()):
     hidden = hidden_tags(cfg)
     used = {
         t.taxon for t in trees.values()
-        if t.taxon and not any(tag in hidden for tag in t.tags)
+        if t.taxon and not any(tag in hidden for tag in t.tags) and not unpublished(cfg, t)
     }
     used.update(extra_taxa)
     chosen = sorted(
@@ -304,7 +312,7 @@ def cmd_dates(cfg, trees, out):
     hidden = hidden_tags(cfg)
     entries = []
     for t in trees.values():
-        if any(tag in hidden for tag in t.tags) or not t.dates:
+        if any(tag in hidden for tag in t.tags) or unpublished(cfg, t) or not t.dates:
             continue
         first = min(t.dates)
         for d in t.dates:
