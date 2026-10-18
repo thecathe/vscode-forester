@@ -60,11 +60,11 @@
         "opam-repository": "opam-repository"
       },
       "locked": {
-        "lastModified": 1792063062,
-        "narHash": "sha256-twAbdjskKLw0M2IMUbxh73xuApNdho9c9/lt1JaVXUY=",
+        "lastModified": 1792332494,
+        "narHash": "sha256-k45aB1Pr7DnfSElOPhrhvjFIECu9HzFpF2J3tMxlVZA=",
         "owner": "thecathe",
         "repo": "ocaml-forester",
-        "rev": "a847fbde501c72404d31cdf2cf767ffb6af09338",
+        "rev": "8fb8b374fd6dce2e7c1bd88793becd71fc6a4a36",
         "type": "github"
       },
       "original": {
