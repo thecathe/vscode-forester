@@ -8,6 +8,7 @@ names, and it reads the same schema tables the forester fork validates:
     [forest.tag.private]       behaviour = "hide"
     [forest.tag.must-preorder] page = true
     [forest.meta.date]         page = true
+    [forest.publish]           tags = ["public"]
 
 Subcommands (all take --config, default forest.toml):
 
@@ -88,7 +89,9 @@ def load_config(path):
         if isinstance(v, dict)
     }
     date_meta = forest.get("meta", {}).get("date", {})
+    publish = forest.get("publish", {})
     return {
+        "publish_tags": list(publish.get("tags", [])) if isinstance(publish, dict) else [],
         "date_page": isinstance(date_meta, dict) and date_meta.get("page") is True,
         "taxa": taxa,
         "directories": directories,
@@ -174,9 +177,15 @@ def hidden_tags(cfg):
 
 
 def unpublished(cfg, tree):
-    """Whether the tree's taxon has `unpublished = true` and its address is
-    not in that taxon's `publish` list (the compiler's rule): it gets no page,
-    so generated pages must not list it either."""
+    """The compiler's rule: it gets no page, so generated pages must not list
+    it either. With `[forest.publish] tags`, a tree is published only if it
+    carries one of them. Otherwise (and a publish tag overrides this), its
+    taxon has `unpublished = true` and its address is not in that taxon's
+    `publish` list."""
+    if any(t in cfg["publish_tags"] for t in tree.tags):
+        return False
+    if cfg["publish_tags"]:
+        return True
     rule = cfg["taxa"].get(tree.taxon or "", {})
     return rule.get("unpublished") is True and tree.addr not in rule.get("publish", [])
 
