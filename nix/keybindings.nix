@@ -75,6 +75,22 @@ in [
     group = "Trees";
     label = "New tree, ask for title (anywhere)";
   }
+  # forest-keeper binds Rename Tree to ctrl+r by default, which shadows VS Code's
+  # "File: Open Recent..." in .tree editors. Unbind that (the `when` must match
+  # the extension's own for the removal to apply) and move it to ctrl+shift+r,
+  # which dots already frees from Refactor.
+  {
+    key = "ctrl+r";
+    command = "-forester.renameTree";
+    when = "editorTextFocus && resourceExtname == .tree";
+  }
+  {
+    key = "ctrl+shift+r";
+    command = "forester.renameTree";
+    inherit when;
+    group = "Trees";
+    label = "Rename tree";
+  }
   # Structural inserts (see ../extension). All leave the cursor between the
   # new braces. These shadow VS Code's Trigger Suggest (ctrl+i) and Toggle
   # Developer Tools (ctrl+shift+i) in .tree editors only.
