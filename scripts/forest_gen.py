@@ -16,7 +16,10 @@ Subcommands (all take --config, default forest.toml):
           configured prefix but has no .tree file, write a stub tree
           (\title + \taxon) so the page exists and gets backlinks.
   tags    For every tag with `page = true` (and not hidden), write a tag
-          page listing the trees carrying it, plus a `tags` index page.
+          page listing the trees carrying it, plus a `tags` index page. The
+          page is titled with the tag, or `[forest.tag.<name>] title` if set
+          (plain text; the compiler also uses it as the tag's label in page
+          headers, unless `label` is set).
   taxa    For every taxon in use (except `[forest.taxon.<Name>] page =
           false`), write a taxon page listing the trees with that taxon,
           plus a `taxa` index. The compiler links each taxon to its page.
@@ -214,6 +217,23 @@ def cmd_stubs(cfg, trees, out):
     return created
 
 
+def tag_title(cfg, tag):
+    """The title of a tag's page: `[forest.tag.<name>] title`, else the tag.
+    It is plain text (the compiler also shows it as the tag's label in page
+    headers), so one that would be read as markup is ignored with a warning."""
+    title = cfg["tags"].get(tag, {}).get("title")
+    if title is None:
+        return tag
+    if not isinstance(title, str) or not title.strip() or re.search(r"[{}\\%]", title):
+        print(
+            "warning: ignoring title %r for tag %r (it must be non-empty plain text, without { } \\ %%)"
+            % (title, tag),
+            file=sys.stderr,
+        )
+        return tag
+    return title.strip()
+
+
 def cmd_tags(cfg, trees, out):
     hidden = hidden_tags(cfg)
     present = {tag for t in trees.values() for tag in t.tags}
@@ -234,7 +254,8 @@ def cmd_tags(cfg, trees, out):
             continue
         write_tree(
             out, addr,
-            "\\title{%s}\n\\taxon{Tag}\n\\query{\\datalog{?X -: {\\rel/has-tag ?X '{%s}}}}\n" % (tag, tag),
+            "\\title{%s}\n\\taxon{Tag}\n\\query{\\datalog{?X -: {\\rel/has-tag ?X '{%s}}}}\n"
+            % (tag_title(cfg, tag), tag),
         )
         created.append({"tag": tag, "addr": addr})
         print("tag page: %s" % addr)
