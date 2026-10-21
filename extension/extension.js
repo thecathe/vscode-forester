@@ -34,13 +34,16 @@ async function saveActive() {
   return editor;
 }
 
+// The forest is the first workspace folder. Any others (a devlog, say) are
+// plain folders: building from, or looking for people in, whichever folder the
+// active editor happens to be in would run in the wrong place.
+const forestFolder = () => (vscode.workspace.workspaceFolders || [])[0];
+
 // Runs as a task (rather than a bare child process) so output lands in the
 // shared task panel, as the old `Forester: Build Forest` task did.
 async function build() {
-  const editor = await saveActive();
-  const folder =
-    (editor && vscode.workspace.getWorkspaceFolder(editor.document.uri)) ||
-    (vscode.workspace.workspaceFolders || [])[0];
+  await saveActive();
+  const folder = forestFolder();
   if (!folder) {
     notify("no workspace folder to build");
     return;
@@ -95,9 +98,7 @@ async function insertPersonLinkBlank() {
 async function insertPersonLink() {
   const editor = vscode.window.activeTextEditor;
   if (!editor) return;
-  const folder =
-    vscode.workspace.getWorkspaceFolder(editor.document.uri) ||
-    (vscode.workspace.workspaceFolders || [])[0];
+  const folder = forestFolder();
   if (!folder) return;
   const peopleDir = vscode.Uri.joinPath(folder.uri, "trees", "people");
   let files = [];

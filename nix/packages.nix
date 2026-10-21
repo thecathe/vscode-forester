@@ -120,7 +120,7 @@
   # touch-date commands that wrap the scripts below.
   forester-edit = pkgs.vscode-utils.buildVscodeExtension {
     pname = "forester-edit";
-    version = "0.5.0";
+    version = "0.5.1";
     # named "extension" because buildVscodeExtension expects that source root.
     # cheatsheet.json is generated from nix/keybindings.nix so the in-editor
     # cheatsheet (forestEdit.showCheatsheet) cannot drift from the bindings.

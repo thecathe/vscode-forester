@@ -2,7 +2,7 @@
   "name": "forester-edit",
   "displayName": "Forester Edit",
   "description": "Keybound structural insertions (\\li, \\ol, \\p, \\tag, person links) plus build and touch-date commands for Forester .tree files",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "publisher": "thecathe",
   "engines": { "vscode": "^1.80.0" },
   "main": "./extension.js",
@@ -33,7 +33,7 @@
         "forestEdit.buildCommand": {
           "type": "string",
           "default": "build-forest",
-          "description": "Command run by \"Forester: Build Forest\", in the workspace folder of the active tree."
+          "description": "Command run by \"Forester: Build Forest\", in the first workspace folder."
         },
         "forestEdit.author": {
           "type": "string",
