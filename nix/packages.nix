@@ -41,6 +41,27 @@
   # a `noTitle` option on createNewTree (qC) threaded through the command
   # wrapper (ag). forester.newTree itself is left as is, so the two can be
   # bound separately (see nix/vscode-feature.nix).
+  #
+  # forest-keeper is single-root: its getRoot (Pt) returns the *first*
+  # workspace folder, and the formatter cache, LTeX dictionary and link-alias
+  # config already live there. But it nags "only supports opening one
+  # workspace folder" on every call once a second folder is added, and two
+  # things look past the first folder regardless: the bundled Langium
+  # language server is handed every folder and indexes all their .tree files
+  # (so a tree in another folder resolves links, definitions and diagnostics
+  # into this forest), and ten `findFiles("**/*.tree")` sweeps (macro scan,
+  # Format All Trees, Check All, the sig registry, the tree index, the
+  # transclusion/backlinks/contributors views, macro go-to-definition) run
+  # over every folder. Confine it to the first folder instead: drop the
+  # warning; give the language client `workspaceFolder` (it then initialises
+  # the server with only that folder and never registers the
+  # didChangeWorkspaceFolders feature, so the others are never announced),
+  # with a document selector limited to that folder; and make the sweeps and
+  # the three template-literal lookups search under Pt() only. Extra folders
+  # then behave as plain folders. Changing which folder is first needs a
+  # window reload. The identifiers (yt, Pt, ne, ue, ft, $) are specific to
+  # 0.4.17; --replace-fail and the sweep count check make a version bump
+  # fail loudly.
   forest-keeper =
     (pkgs.vscode-utils.buildVscodeMarketplaceExtension {
       mktplcRef = {
@@ -77,6 +98,20 @@
           # `.then`); `?.` keeps the undefined-on-failure behaviour.
           substituteInPlace out/extension.js \
             --replace-fail ':[]]))?.trim();if(!x){' ':[]]))?.split(/\r?\n/).map(fe=>fe.trim()).filter(fe=>fe.endsWith(".tree")).pop();if(!x){'
+
+          # Confine to the first workspace folder (see above).
+          substituteInPlace out/extension.js \
+            --replace-fail 'yt.workspace.workspaceFolders.length!==1&&yt.window.showWarningMessage("vscode-forester only supports opening one workspace folder."),' "" \
+            --replace-fail 'r={documentSelector:[{scheme:"file",language:"forester"}]};' 'r={workspaceFolder:$.workspace.workspaceFolders[0],documentSelector:[{scheme:"file",language:"forester",pattern:$.workspace.workspaceFolders[0].uri.fsPath+"/**"}]};' \
+            --replace-fail 'ne.workspace.findFiles(`**/''${t}.tree`,null,1)' 'ne.workspace.findFiles(new ne.RelativePattern(Pt(),`**/''${t}.tree`),null,1)' \
+            --replace-fail 'ue.workspace.findFiles(`**/''${e}.tree`,"**/node_modules/**",1)' 'ue.workspace.findFiles(new ue.RelativePattern(Pt(),`**/''${e}.tree`),"**/node_modules/**",1)' \
+            --replace-fail 'ft.workspace.findFiles("**/figures/*.ts","**/node_modules/**")' 'ft.workspace.findFiles(new ft.RelativePattern(Pt(),"**/figures/*.ts"),"**/node_modules/**")'
+          sed -E -i 's/([A-Za-z0-9_$]+)\.workspace\.findFiles\("\*\*\/\*\.tree"/\1.workspace.findFiles(new \1.RelativePattern(Pt(),"**\/*.tree")/g' out/extension.js
+          sweeps=$(grep -o 'RelativePattern(Pt(),"\*\*/\*\.tree")' out/extension.js | wc -l)
+          if [ "$sweeps" -ne 10 ]; then
+            echo "expected to scope 10 workspace-wide .tree sweeps, scoped $sweeps" >&2
+            exit 1
+          fi
         '';
     });
 
