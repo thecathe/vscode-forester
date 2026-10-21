@@ -168,6 +168,30 @@
     exec ${python}/bin/python3 ${scriptsDir}/touch_date.py "$@"
   '';
 
+  # CHROMIUM-XSLT-STOPGAP
+  #
+  # Everything that works around Chromium removing browser-side XSLT lives in
+  # four places, all marked with this word: this command, the script it runs
+  # (scripts/forest-render-html.sh), one block plus one flag in `build-forest`
+  # below, and its export in flake.nix. Forester 6.0 writes HTML itself, so on
+  # upgrading, run
+  # `grep -rn CHROMIUM-XSLT-STOPGAP` in this repo and delete every hit (the
+  # script also turns itself into a no-op when there is no index.xml to render).
+  #
+  # Renders every tree's index.xml in a forester output directory to a plain
+  # index.html with the theme's own XSLT, mirroring the deployed site's
+  # `forest-html` step. Usable on its own: `render-forest-html output`. Set
+  # VSCODE_FORESTER_SCRIPTS to a checkout's scripts/ dir to run an edited copy.
+  render-forest-html = pkgs.writeShellScriptBin "render-forest-html" ''
+    set -euo pipefail
+    export PATH="${lib.makeBinPath [pkgs.libxslt pkgs.coreutils pkgs.findutils]}:$PATH"
+    script=${scriptsDir}/forest-render-html.sh
+    if [ -n "''${VSCODE_FORESTER_SCRIPTS:-}" ] && [ -f "$VSCODE_FORESTER_SCRIPTS/forest-render-html.sh" ]; then
+      script="$VSCODE_FORESTER_SCRIPTS/forest-render-html.sh"
+    fi
+    exec sh "$script" "$@"
+  '';
+
   # See scripts/embed_images.py and scripts/unpad_svgs.py for why these are
   # needed. embed_images always runs; unpad_svgs runs by default (pass --pad
   # to skip it) and is stripped out before forwarding arguments to `forester
@@ -175,11 +199,9 @@
   # \tex{}{} artefact needs back is added deliberately via the \padded macro
   # rather than inherited from dvisvgm's margin.
   #
-  # forest-render-html.sh also always runs, last (pass --xml-only to skip it,
-  # likewise stripped before forwarding): it renders every tree's XML to a
-  # plain index.html with xsltproc, because Chromium is removing browser-side
-  # XSLT. It mirrors the deployed site's own `forest-html` step, so a local
-  # preview (`serve-forest`) and production serve the same kind of page.
+  # It also ends by running render-forest-html (CHROMIUM-XSLT-STOPGAP, defined
+  # just above); pass --xml-only to skip that, likewise stripped before
+  # forwarding.
   #
   # Self-contained: carries its own PATH (forester fork, python, texlive,
   # rsvg, imagemagick), so the editor can invoke it by store path without any
@@ -187,14 +209,14 @@
   # checkout's scripts/ dir to run edited scripts without rebuilding.
   build-forest = pkgs.writeShellScriptBin "build-forest" ''
     set -euo pipefail
-    export PATH="${lib.makeBinPath [python forester tex pkgs.coreutils pkgs.findutils pkgs.libxslt]}:$PATH"
+    export PATH="${lib.makeBinPath [python forester tex pkgs.coreutils pkgs.findutils]}:$PATH"
     # Let \includegraphics{foo.png} inside \tex{}{} card bodies resolve bare
     # filenames against the forest's own assets/ dir, since LaTeX compiles in
     # a throwaway temp directory with no knowledge of the forest's layout. The
     # trailing colon keeps the default TeX search paths too.
     export TEXINPUTS="$PWD/assets:''${TEXINPUTS:-}"
     unpad=true
-    html=true
+    html=true # CHROMIUM-XSLT-STOPGAP
     strict=()
     config=forest.toml
     args=()
@@ -202,7 +224,7 @@
       case "$arg" in
         --unpad) unpad=true ;;
         --pad) unpad=false ;;
-        --xml-only) html=false ;;
+        --xml-only) html=false ;; # CHROMIUM-XSLT-STOPGAP
         --strict-private) strict=(--strict) ;;
         *.toml) config="$arg"; args+=("$arg") ;;
         *) args+=("$arg") ;;
@@ -226,8 +248,9 @@
     if "$unpad"; then
       python3 "$(script unpad_svgs.py)" ${pkgs.librsvg}/bin/rsvg-convert ${pkgs.imagemagick}/bin/magick
     fi
+    # CHROMIUM-XSLT-STOPGAP: delete this block on Forester 6.0 (see render-forest-html).
     if "$html"; then
-      sh "$(script forest-render-html.sh)" .
+      ${render-forest-html}/bin/render-forest-html .
     fi
   '';
 in {
@@ -236,6 +259,7 @@ in {
     forester-edit
     scripts
     build-forest
+    render-forest-html
     serve-forest
     touch-date
     tex

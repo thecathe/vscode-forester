@@ -40,6 +40,8 @@
       p = mkPackages nixpkgs.legacyPackages.${system};
     in {
       inherit (p) forest-keeper forester-edit scripts build-forest serve-forest touch-date;
+      # CHROMIUM-XSLT-STOPGAP: drop this export on Forester 6.0.
+      inherit (p) render-forest-html;
       default = p.build-forest;
     });
 

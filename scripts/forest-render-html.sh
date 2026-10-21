@@ -1,4 +1,7 @@
 #!/bin/sh
+# CHROMIUM-XSLT-STOPGAP: delete this file on Forester 6.0 (see `render-forest-html`
+# in nix/packages.nix, which runs it).
+#
 # Always-on build step (skip with `build-forest --xml-only`): render a forester
 # build's XML pages to HTML with the forest's own XSLT, so no browser has to.
 #
@@ -16,9 +19,16 @@
 set -eu
 dir=$1
 xsl="$dir/default.xsl"
+
+# Self-disabling: a forester that writes HTML itself leaves no index.xml, so
+# there is nothing to do (and no stylesheet is needed).
+count=$(find "$dir" -name index.xml | wc -l)
+if [ "$count" -eq 0 ]; then
+  echo "no index.xml under $dir: nothing to render (forester already wrote HTML?)"
+  exit 0
+fi
 [ -f "$xsl" ] || { echo "no $xsl: not a forester build?" >&2; exit 1; }
 
-count=$(find "$dir" -name index.xml | wc -l)
 find "$dir" -name index.xml -print0 |
   xargs -0 -P "$(nproc)" -I{} sh -c 'xsltproc --nonet -o "$(dirname "$1")/index.html" "$2" "$1"' _ {} "$xsl"
 echo "rendered $count pages to HTML"
