@@ -131,7 +131,9 @@ function appendBlock(text, scope, lines, blankBefore) {
 // The item goes at the nearest valid point after the cursor: right after the
 // chosen list's item the cursor is in (whole item, nested lists included), or
 // before the next item when the cursor sits between items, or at the end of
-// the list when nothing follows. When there is no such list, a fresh
+// the list when nothing follows. If the cursor is on an empty line of the list
+// itself (not inside an item), the new item takes that line instead. When
+// there is no such list, a fresh
 // `\ul{ \li{} }` is appended to the end of the subtree (or of the page).
 function insertLi(text, cursorOff, level) {
   const { scope, uls, all } = contextAt(text, cursorOff);
@@ -175,6 +177,19 @@ function insertLi(text, cursorOff, level) {
       end: at + skip,
       text: `\n${itemIndent}\\li{}\n${itemIndent}`,
       cursor: at + 1 + itemIndent.length + lead,
+    };
+  }
+  // Cursor on an empty line of the list itself (not inside an item): the item
+  // takes that line, instead of landing on the line beneath it.
+  const curStart = lineStart(text, cursorOff);
+  let curEnd = text.indexOf("\n", cursorOff);
+  if (curEnd < 0) curEnd = text.length;
+  if (ul === uls[0] && curStart > ul.open && /^[ \t]*$/.test(text.slice(curStart, curEnd))) {
+    return {
+      start: curStart,
+      end: curEnd,
+      text: `${indent}\\li{}`,
+      cursor: curStart + indent.length + lead,
     };
   }
   if (next) {

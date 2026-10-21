@@ -41,10 +41,49 @@ test("inner level inside a nested list stays in the nested list", () => {
   );
 });
 
-test("cursor between items inserts before the next item", () => {
+test("cursor on an empty line between items takes that line", () => {
   assert.strictEqual(
     run("\\ul{\n  \\li{a}\n|\n  \\li{b}\n}\n", li("inner")),
-    "\\ul{\n  \\li{a}\n\n  \\li{|}\n  \\li{b}\n}\n",
+    "\\ul{\n  \\li{a}\n  \\li{|}\n  \\li{b}\n}\n",
+  );
+});
+
+test("cursor between items on a non-empty line inserts before the next item", () => {
+  assert.strictEqual(
+    run("\\ul{\n  \\li{a}\n  % note|\n  \\li{b}\n}\n", li("inner")),
+    "\\ul{\n  \\li{a}\n  % note\n  \\li{|}\n  \\li{b}\n}\n",
+  );
+});
+
+test("empty list: the cursor's empty line becomes the item", () => {
+  assert.strictEqual(
+    run("\\ul{\n  |\n}\n", li("inner")),
+    "\\ul{\n  \\li{|}\n}\n",
+  );
+  assert.strictEqual(
+    run("\\ol{\n|\n}\n", li("inner")),
+    "\\ol{\n  \\li{|}\n}\n",
+  );
+});
+
+test("empty line after the last item takes that line", () => {
+  assert.strictEqual(
+    run("\\ul{\n  \\li{a}\n  |\n}\n", li("inner")),
+    "\\ul{\n  \\li{a}\n  \\li{|}\n}\n",
+  );
+});
+
+test("an empty line inside an item still puts the new item after that item", () => {
+  assert.strictEqual(
+    run("\\ul{\n  \\li{a\n  |\n  }\n}\n", li("inner")),
+    "\\ul{\n  \\li{a\n  \n  }\n  \\li{|}\n}\n",
+  );
+});
+
+test("an empty line nested in a list inside an item takes the nested list's item", () => {
+  assert.strictEqual(
+    run("\\ul{\n  \\li{a \\ol{\n    |\n  }}\n}\n", li("inner")),
+    "\\ul{\n  \\li{a \\ol{\n    \\li{|}\n  }}\n}\n",
   );
 });
 
