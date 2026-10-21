@@ -175,19 +175,26 @@
   # \tex{}{} artefact needs back is added deliberately via the \padded macro
   # rather than inherited from dvisvgm's margin.
   #
+  # forest-render-html.sh also always runs, last (pass --xml-only to skip it,
+  # likewise stripped before forwarding): it renders every tree's XML to a
+  # plain index.html with xsltproc, because Chromium is removing browser-side
+  # XSLT. It mirrors the deployed site's own `forest-html` step, so a local
+  # preview (`serve-forest`) and production serve the same kind of page.
+  #
   # Self-contained: carries its own PATH (forester fork, python, texlive,
   # rsvg, imagemagick), so the editor can invoke it by store path without any
   # direnv/devShell having been loaded. Set VSCODE_FORESTER_SCRIPTS to a
   # checkout's scripts/ dir to run edited scripts without rebuilding.
   build-forest = pkgs.writeShellScriptBin "build-forest" ''
     set -euo pipefail
-    export PATH="${lib.makeBinPath [python forester tex pkgs.coreutils pkgs.findutils]}:$PATH"
+    export PATH="${lib.makeBinPath [python forester tex pkgs.coreutils pkgs.findutils pkgs.libxslt]}:$PATH"
     # Let \includegraphics{foo.png} inside \tex{}{} card bodies resolve bare
     # filenames against the forest's own assets/ dir, since LaTeX compiles in
     # a throwaway temp directory with no knowledge of the forest's layout. The
     # trailing colon keeps the default TeX search paths too.
     export TEXINPUTS="$PWD/assets:''${TEXINPUTS:-}"
     unpad=true
+    html=true
     strict=()
     config=forest.toml
     args=()
@@ -195,6 +202,7 @@
       case "$arg" in
         --unpad) unpad=true ;;
         --pad) unpad=false ;;
+        --xml-only) html=false ;;
         --strict-private) strict=(--strict) ;;
         *.toml) config="$arg"; args+=("$arg") ;;
         *) args+=("$arg") ;;
@@ -217,6 +225,9 @@
     python3 "$(script embed_images.py)"
     if "$unpad"; then
       python3 "$(script unpad_svgs.py)" ${pkgs.librsvg}/bin/rsvg-convert ${pkgs.imagemagick}/bin/magick
+    fi
+    if "$html"; then
+      sh "$(script forest-render-html.sh)" .
     fi
   '';
 in {
