@@ -100,7 +100,7 @@ async function insertPersonLink() {
   if (!editor) return;
   const folder = forestFolder();
   if (!folder) return;
-  const peopleDir = vscode.Uri.joinPath(folder.uri, "trees", "people");
+  const peopleDir = vscode.Uri.joinPath(folder.uri, "trees", "group", "people");
   let files = [];
   try {
     files = await vscode.workspace.fs.readDirectory(peopleDir);
@@ -116,7 +116,7 @@ async function insertPersonLink() {
       const raw = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(peopleDir, name));
       const t = /\\title\{([^}]*)\}/.exec(Buffer.from(raw).toString("utf8"));
       title = t ? t[1] : "";
-    } catch (_) {}
+    } catch (_) { }
     known.set(m[1], title);
   }
 
