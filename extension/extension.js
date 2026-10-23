@@ -100,7 +100,7 @@ async function insertPersonLink() {
   if (!editor) return;
   const folder = forestFolder();
   if (!folder) return;
-  const peopleDir = vscode.Uri.joinPath(folder.uri, "trees", "group", "people");
+  const peopleDir = vscode.Uri.joinPath(folder.uri, "trees", "groups", "people");
   let files = [];
   try {
     files = await vscode.workspace.fs.readDirectory(peopleDir);
