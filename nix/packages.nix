@@ -253,12 +253,29 @@
       ${render-forest-html}/bin/render-forest-html .
     fi
   '';
+  # A PDF of each deck (or of those named) in the built `output/`, made by the forest's own scripts/deck-pdf.py with a headless
+  # Chromium: `deck-pdf --list`, `deck-pdf 1IJ0`, `deck-pdf trees/meta/slides-demo.tree`. Run it from the forest's root after
+  # `build-forest`. The script is the forest's (it has its tests there), so this only finds it, and gives it a Chromium: the
+  # one of this flake's nixpkgs, unless CHROMIUM names another, or, where nixpkgs has none for the system, the one on PATH.
+  # Chromium is the big part of this shell's closure.
+  chromium = lib.optionalString (lib.meta.availableOn pkgs.stdenv.hostPlatform pkgs.chromium) "${pkgs.chromium}/bin/chromium";
+  deck-pdf = pkgs.writeShellScriptBin "deck-pdf" ''
+    set -euo pipefail
+    script=scripts/deck-pdf.py
+    if [ ! -f "$script" ]; then
+      echo "deck-pdf: no $script here: run it from the forest's root, after build-forest" >&2
+      exit 1
+    fi
+    ${lib.optionalString (chromium != "") ''export CHROMIUM="''${CHROMIUM:-${chromium}}"''}
+    exec ${python}/bin/python3 -I "$script" "$@"
+  '';
 in {
   inherit
     forest-keeper
     forester-edit
     scripts
     build-forest
+    deck-pdf
     render-forest-html
     serve-forest
     touch-date

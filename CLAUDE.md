@@ -13,7 +13,7 @@ the keybindings/settings. Consumed by `dots` (home-manager VS Code profile, via
 ## Layout
 
 - `flake.nix` — outputs: `packages`, `devShells`, `lib.{vscodeFeature,mkDevShell,mkPackages}`.
-- `nix/packages.nix` — forest-keeper pin + patches, forester-edit, scripts, `build-forest`/`serve-forest`/`touch-date`.
+- `nix/packages.nix` — forest-keeper pin + patches, forester-edit, scripts, `build-forest`/`serve-forest`/`touch-date`/`deck-pdf` (the last runs the forest's own `scripts/deck-pdf.py` with Chromium).
 - `nix/vscode-feature.nix` — settings and keybindings (user-scoped; VS Code has no workspace keybindings).
 - `extension/` — the `forester-edit` VS Code extension (plain JS, no build step).
 - `scripts/` — python helpers run by `build-forest` / `touch-date`. Set `VSCODE_FORESTER_SCRIPTS=<checkout>/scripts`
