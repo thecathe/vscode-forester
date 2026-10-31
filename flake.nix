@@ -32,6 +32,7 @@
           p.tex
           p.serve-forest
           p.build-forest
+          p.deck-pdf
           p.touch-date
         ];
       };
@@ -39,7 +40,7 @@
     packages = eachSystem (system: let
       p = mkPackages nixpkgs.legacyPackages.${system};
     in {
-      inherit (p) forest-keeper forester-edit scripts build-forest serve-forest touch-date;
+      inherit (p) forest-keeper forester-edit scripts build-forest deck-pdf serve-forest touch-date;
       # CHROMIUM-XSLT-STOPGAP: drop this export on Forester 6.0.
       inherit (p) render-forest-html;
       default = p.build-forest;
