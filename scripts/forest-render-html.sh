@@ -29,6 +29,25 @@ if [ "$count" -eq 0 ]; then
 fi
 [ -f "$xsl" ] || { echo "no $xsl: not a forester build?" >&2; exit 1; }
 
+# Where each tree leads, for the links of a deck (theme/links.xsl): <dir>/leads-to.xml, one <to> for each tree that has a
+# \meta{redirect} or \meta{external}, made by the theme's leads-to-index.xsl, run over one tree's page at a time. A deck
+# that read the pages it links to itself would hold them all in memory (libxslt keeps every document it loads until the
+# page is done), and several decks are rendered at once below. A theme without that stylesheet gets no file (and no stale
+# one), and its stylesheet reads the pages instead.
+lead="$dir/leads-to-index.xsl"
+rm -f "$dir/leads-to.xml"
+if [ -f "$lead" ]; then
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  find "$dir" -name index.xml -print0 |
+    xargs -0 -P "$(nproc)" -I{} sh -c 'xsltproc --nonet -o "$3/$(basename "$(dirname "$1")")" "$2" "$1"' _ {} "$lead" "$tmp"
+  {
+    echo '<leads-to>'
+    find "$tmp" -type f -print0 | sort -z | xargs -0 -r cat
+    echo '</leads-to>'
+  } > "$dir/leads-to.xml"
+fi
+
 find "$dir" -name index.xml -print0 |
   xargs -0 -P "$(nproc)" -I{} sh -c 'xsltproc --nonet -o "$(dirname "$1")/index.html" "$2" "$1"' _ {} "$xsl"
 echo "rendered $count pages to HTML"

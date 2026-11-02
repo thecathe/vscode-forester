@@ -244,6 +244,9 @@
     forester build "''${args[@]}"
     find assets -maxdepth 1 -type f ! -name '.gitkeep' -exec cp -t output -- {} +
     cd output
+    # leads-to.xml is made by render-forest-html below; forester does not clear output/, so with --xml-only the one from
+    # an earlier build would stay and be out of date. Without it the theme reads the trees' pages instead, which is right.
+    rm -f leads-to.xml
     python3 "$(script embed_images.py)"
     if "$unpad"; then
       python3 "$(script unpad_svgs.py)" ${pkgs.librsvg}/bin/rsvg-convert ${pkgs.imagemagick}/bin/magick
