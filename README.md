@@ -1,8 +1,4 @@
-# CLAUDE.md
-
-Guidance for Claude Code when working in this repository.
-
-## What this is
+# vscode-forester
 
 Single source for the Forester + VS Code setup built around the `ocaml-forester`
 fork: the `forest-keeper` patch pin, the local `forester-edit` extension
@@ -18,8 +14,3 @@ the keybindings/settings. Consumed by `dots` (home-manager VS Code profile, via
 - `extension/` — the `forester-edit` VS Code extension (plain JS, no build step).
 - `scripts/` — python helpers run by `build-forest` / `touch-date`. Set `VSCODE_FORESTER_SCRIPTS=<checkout>/scripts`
   to run edited copies without rebuilding.
-
-## Git integration
-
-Integrate finished branches into `main` with a local `git merge --no-ff <branch>`
-(no PR, no squash). Do not push unless explicitly asked.
